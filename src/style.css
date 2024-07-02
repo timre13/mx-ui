@@ -1,0 +1,33 @@
+.connect-button {
+    font-size: large;
+    font-weight: bold;
+}
+
+.top-bar {
+    border: 1px solid gray;
+    padding: 10px;
+}
+
+.status-display {
+}
+
+.status-display-connected {
+    color: lime;
+    font-weight: bold;
+}
+
+.status-display-disconnected {
+    color: red;
+    font-weight: bold;
+}
+
+.main-box {
+}
+
+.left-box {
+    border: 1px solid gray;
+}
+
+.plot-area {
+    background: #555555;
+}

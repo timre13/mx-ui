@@ -7,6 +7,8 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <stdint.h>
+#include <gtkmm.h>
+#include <gtkmm/application.h>
 
 #define BAUDRATE 2400
 #define READ_MIN 14
@@ -113,14 +115,61 @@ private:
         case 0b00000000: return DEmpty;
         case 0b01101000: return DL;
         default:
+#ifndef NDEBUG
+            std::cerr << "Invalid digit value: " << std::bitset<8>(digit) << '\n';
+#endif
             assert(false);
             return DEmpty;
         }
     }
 };
 
-int main()
+enum class ConnStatus
 {
+    Disconnected,
+    Connected,
+};
+
+int main(int argc, char** argv)
+{
+    Gtk::ApplicationWindow* mainWindow{};
+    Glib::RefPtr<Gtk::Builder> builder{};
+    ConnStatus connStatus = ConnStatus::Disconnected;
+
+    auto app = Gtk::Application::create("xyz.timre13.mx-ui");
+    app->signal_activate().connect([&](){
+        builder = Gtk::Builder::create_from_file("../src/main.ui");
+        mainWindow = builder->get_widget<Gtk::ApplicationWindow>("main-window");
+        mainWindow->set_application(app);
+
+        auto cssProv = Gtk::CssProvider::create();
+        cssProv->load_from_path("../src/style.css");
+        Gtk::StyleContext::add_provider_for_display(mainWindow->get_display(), cssProv, GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
+        builder->get_widget<Gtk::Button>("connect-button")->signal_clicked().connect([&](){
+            std::cout << "Clicked\n";
+
+            auto statDisp = builder->get_widget<Gtk::Label>("status-display");
+            if (connStatus == ConnStatus::Disconnected)
+            {
+                connStatus = ConnStatus::Connected;
+                statDisp->remove_css_class("status-display-disconnected");
+                statDisp->add_css_class("status-display-connected");
+                statDisp->set_label("Connected");
+            }
+            else if (connStatus == ConnStatus::Connected)
+            {
+                connStatus = ConnStatus::Disconnected;
+                statDisp->remove_css_class("status-display-sconnected");
+                statDisp->add_css_class("status-display-disconnected");
+                statDisp->set_label("Disconnected");
+            }
+        });
+
+        mainWindow->present();
+    });
+
+    /*
     const int port = open("/dev/ttyUSB0", O_RDONLY | O_NOCTTY);
 
     std::cout << "Opened port, handle: " << port << '\n';
@@ -185,6 +234,7 @@ int main()
         std::cout << std::flush;
     }
     tcsetattr(port, TCSANOW, &oldTio);
+    */
 
-    return 0;
+    return app->run(argc, argv);
 }

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+    <requires lib="gtk" version="4.0" />
+    <object class="GtkApplicationWindow" id="main-window">
+        <property name="title">MX-UI</property>
+        <property name="default-width">1500</property>
+        <property name="default-height">800</property>
+
+        <property name="child">
+            <object class="GtkBox">
+                <property name="orientation">vertical</property>
+
+                <child>
+                    <object class="GtkBox">
+                        <property name="orientation">horizontal</property>
+                        <property name="spacing">20</property>
+                        <style>
+                            <class name="top-bar" />
+                        </style>
+
+                        <child>
+                            <object class="GtkButton" id="connect-button">
+                                <property name="label">CONNECT</property>
+                                <style>
+                                    <class name="connect-button" />
+                                </style>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkLabel" id="status-display">
+                                <property name="label">Disconnected</property>
+                                <property name="tooltip-text">Status</property>
+                                <style>
+                                    <class name="status-display" />
+                                </style>
+                                <style>
+                                    <class name="status-display-disconnected" />
+                                </style>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+
+                <child>
+                    <object class="GtkPaned">
+                        <property name="orientation">horizontal</property>
+                        <property name="vexpand">true</property>
+                        <property name="hexpand">true</property>
+                        <property name="position">250</property>
+
+                        <style>
+                            <class name="main-box" />
+                        </style>
+
+                        <child>
+                            <object class="GtkBox">
+                                <property name="width-request">250</property>
+
+                                <style>
+                                    <class name="left-box" />
+                                </style>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkDrawingArea">
+                                <property name="width-request">500</property>
+                                <property name="vexpand">true</property>
+                                <property name="hexpand">true</property>
+
+                                <style>
+                                    <class name="plot-area" />
+                                </style>
+                            </object>
+                        </child>
+
+                        <property name="shrink-start-child">false</property>
+                        <property name="resize-start-child">false</property>
+                        <property name="shrink-end-child">false</property>
+                        <property name="resize-end-child">false</property>
+                    </object>
+                </child>
+            </object>
+        </property>
+    </object>
+</interface>
