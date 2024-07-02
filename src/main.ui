@@ -59,6 +59,11 @@
                                 <style>
                                     <class name="left-box" />
                                 </style>
+
+                                <child>
+                                    <object class="GtkLabel" id="lcd-display">
+                                    </object>
+                                </child>
                             </object>
                         </child>
 

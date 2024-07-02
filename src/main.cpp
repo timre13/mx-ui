@@ -3,12 +3,14 @@
 #include <iomanip>
 #include <cassert>
 #include <bitset>
+#include <mutex>
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <stdint.h>
 #include <gtkmm.h>
 #include <gtkmm/application.h>
+#include <thread>
 
 #define BAUDRATE 2400
 #define READ_MIN 14
@@ -136,6 +138,83 @@ int main(int argc, char** argv)
     Glib::RefPtr<Gtk::Builder> builder{};
     ConnStatus connStatus = ConnStatus::Disconnected;
 
+    std::vector<std::unique_ptr<Frame>> frames;
+    std::mutex framesMutex{};
+    bool stayConnected = true;
+
+    std::thread connThread{[&](){
+        const int port = open("/dev/ttyUSB0", O_RDONLY | O_NOCTTY);
+
+        std::cout << "Opened port, handle: " << port << '\n';
+
+        termios oldTio = termios{};
+        tcgetattr(port, &oldTio);
+
+        tcflush(port, TCIFLUSH);
+
+        termios newTio = termios{};
+        newTio.c_cflag = CRTSCTS | CS8 | CLOCAL | CREAD;
+        newTio.c_iflag = IGNPAR;
+        newTio.c_oflag = 0;
+        newTio.c_lflag = 0;
+        newTio.c_cc[VTIME] = 0;
+        newTio.c_cc[VMIN] = READ_MIN;
+        cfsetispeed(&newTio, B2400);
+        tcsetattr(port, TCSANOW, &newTio);
+
+        //std::cout << std::hex << std::setfill('0');
+        uint8_t buf[255]{};
+        while (stayConnected)
+        {
+            int count = read(port, buf, 255);
+            if (count == -1)
+            {
+                std::cerr << "I/O error\n";
+                return 1;
+            }
+            if (count == 0)
+            {
+                std::cout << "EOF\n";
+                break;
+            }
+#if 0
+            for (int j{}; j < count; ++j)
+            {
+                std::cout << std::bitset<8>(buf[j]) << ' ';
+            }
+            std::cout << buf[0] << '\n';
+#endif
+
+            //if (buf[0] == 0)
+            //    continue;
+            //std::cout << std::bitset<8>(buf[0]);
+
+#if 1
+            auto frame = std::make_unique<Frame>(buf);
+            std::cout << '"';
+            std::cout << (frame->isNegative ? "-" : " ");
+            std::cout << Frame::digitToChar(frame->getDigitThousandVal());
+            std::cout << Frame::digitToChar(frame->getDigitHundredVal());
+            std::cout << Frame::digitToChar(frame->getDigitTenVal());
+            std::cout << Frame::digitToChar(frame->getDigitSingleVal());
+            std::cout << '"';
+
+            std::cout << " = " << frame->getFloatVal();
+
+            {
+                std::lock_guard<std::mutex> guard = std::lock_guard{framesMutex};
+                frames.push_back(std::move(frame));
+            }
+            //std::cout << std::bitset<8>(frame.digitSingle) << '\n';
+#endif
+
+            std::cout << '\n';
+            std::cout << std::flush;
+        }
+        tcsetattr(port, TCSANOW, &oldTio);
+        return 0;
+    }};
+
     auto app = Gtk::Application::create("xyz.timre13.mx-ui");
     app->signal_activate().connect([&](){
         builder = Gtk::Builder::create_from_file("../src/main.ui");
@@ -169,72 +248,22 @@ int main(int argc, char** argv)
         mainWindow->present();
     });
 
-    /*
-    const int port = open("/dev/ttyUSB0", O_RDONLY | O_NOCTTY);
+    app->signal_shutdown().connect([&](){
+        std::cout << "Shutting down\n";
+        stayConnected = false;
+        connThread.join();
+        std::cout << "Done\n";
+    });
 
-    std::cout << "Opened port, handle: " << port << '\n';
+    Glib::signal_timeout().connect([&](){ // -> bool
+        std::lock_guard<std::mutex> guard = std::lock_guard{framesMutex};
+        if (frames.empty())
+            return true;
+        const Frame* const frame = frames.back().get();
+        builder->get_widget<Gtk::Label>("lcd-display")->set_label(std::to_string(frame->getFloatVal()));
+        return true;
+    }, 50);
 
-    termios oldTio = termios{};
-    tcgetattr(port, &oldTio);
-
-    tcflush(port, TCIFLUSH);
-
-    termios newTio = termios{};
-    newTio.c_cflag = CRTSCTS | CS8 | CLOCAL | CREAD;
-    newTio.c_iflag = IGNPAR;
-    newTio.c_oflag = 0;
-    newTio.c_lflag = 0;
-    newTio.c_cc[VTIME] = 0;
-    newTio.c_cc[VMIN] = READ_MIN;
-    cfsetispeed(&newTio, B2400);
-    tcsetattr(port, TCSANOW, &newTio);
-
-    //std::cout << std::hex << std::setfill('0');
-    uint8_t buf[255]{};
-    while (true)
-    {
-        int count = read(port, buf, 255);
-        if (count == -1)
-        {
-            std::cerr << "I/O error\n";
-            return 1;
-        }
-        if (count == 0)
-        {
-            std::cout << "EOF\n";
-            break;
-        }
-#if 0
-        for (int j{}; j < count; ++j)
-        {
-            std::cout << std::bitset<8>(buf[j]) << ' ';
-        }
-        std::cout << buf[0] << '\n';
-#endif
-        
-        //if (buf[0] == 0)
-        //    continue;
-        //std::cout << std::bitset<8>(buf[0]);
-
-#if 1
-        Frame frame{buf};
-        std::cout << '"';
-        std::cout << (frame.isNegative ? "-" : " ");
-        std::cout << Frame::digitToChar(frame.getDigitThousandVal());
-        std::cout << Frame::digitToChar(frame.getDigitHundredVal());
-        std::cout << Frame::digitToChar(frame.getDigitTenVal());
-        std::cout << Frame::digitToChar(frame.getDigitSingleVal());
-        std::cout << '"';
-        
-        std::cout << " = " << frame.getFloatVal();
-        //std::cout << std::bitset<8>(frame.digitSingle) << '\n';
-#endif
-
-        std::cout << '\n';
-        std::cout << std::flush;
-    }
-    tcsetattr(port, TCSANOW, &oldTio);
-    */
 
     return app->run(argc, argv);
 }
