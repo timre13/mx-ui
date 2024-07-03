@@ -11,6 +11,7 @@
 #include <gtkmm.h>
 #include <gtkmm/application.h>
 #include <thread>
+#include <format>
 
 #define BAUDRATE 2400
 #define READ_MIN 14
@@ -34,6 +35,30 @@ public:
         DL,
     };
 
+    struct Unit
+    {
+        enum class Prefix
+        {
+            Nano,
+            Micro,
+            Milli,
+            None,
+            Kilo,
+            Mega,
+        } prefix;
+
+        enum class Base
+        {
+            Volt,
+            Ohm,
+            Farad,
+            Hertz,
+            Percent,
+            Celsius,
+            Ampere,
+        } base;
+    };
+
     bool AUTO{};
     bool DC{};
     bool AC{};
@@ -45,6 +70,24 @@ public:
     bool decimalPoint1{};
     bool decimalPoint2{};
     bool decimalPoint3{};
+    bool diode{};
+    bool kilo{};
+    bool nano{};
+    bool micro{};
+    bool beep{};
+    bool mega{};
+    bool percent{};
+    bool milli{};
+    bool hold{};
+    bool rel{};
+    bool ohm{};
+    bool farad{};
+    bool battery{};
+    bool hertz{};
+    bool volt{};
+    bool ampere{};
+    bool celsius{};
+    bool milliVolt{};
 
     Frame(uint8_t buf[14])
     {
@@ -60,6 +103,29 @@ public:
         decimalPoint1   = (buf[3] & (1 << 3)) >> 3;
         decimalPoint2   = (buf[5] & (1 << 3)) >> 3;
         decimalPoint3   = (buf[7] & (1 << 3)) >> 3;
+
+        diode           = (buf[9] & (1 << 0)) >> 0;
+        kilo            = (buf[9] & (1 << 1)) >> 1;
+        nano            = (buf[9] & (1 << 2)) >> 2;
+        micro           = (buf[9] & (1 << 3)) >> 3;
+
+        beep            = (buf[10] & (1 << 0)) >> 0;
+        mega            = (buf[10] & (1 << 1)) >> 1;
+        percent         = (buf[10] & (1 << 2)) >> 2;
+        milli           = (buf[10] & (1 << 3)) >> 3;
+
+        hold            = (buf[11] & (1 << 0)) >> 0;
+        rel             = (buf[11] & (1 << 1)) >> 1;
+        ohm             = (buf[11] & (1 << 2)) >> 2;
+        farad           = (buf[11] & (1 << 3)) >> 3;
+
+        battery         = (buf[12] & (1 << 0)) >> 0;
+        hertz           = (buf[12] & (1 << 1)) >> 1;
+        volt            = (buf[12] & (1 << 2)) >> 2;
+        ampere          = (buf[12] & (1 << 3)) >> 3;
+
+        celsius         = (buf[13] & (1 << 1)) >> 1;
+        milliVolt       = (buf[13] & (1 << 2)) >> 2;
     }
 
     Digit getDigitThousandVal() const { return digitToVal(digitThousand); }
@@ -95,6 +161,104 @@ public:
             result /= 100;
         if (decimalPoint1)
             result /= 1000;
+
+        return result;
+    }
+
+    Unit getUnit() const
+    {
+        Unit result{};
+
+        if (milliVolt)
+        {
+            result.prefix = Unit::Prefix::Milli;
+            result.base = Unit::Base::Volt;
+        }
+        else
+        {
+            if (kilo)
+                result.prefix = Unit::Prefix::Kilo;
+            else if (nano)
+                result.prefix = Unit::Prefix::Nano;
+            else if (micro)
+                result.prefix = Unit::Prefix::Micro;
+            else if (mega)
+                result.prefix = Unit::Prefix::Mega;
+            else if (milli)
+                result.prefix = Unit::Prefix::Milli;
+            else
+                result.prefix = Unit::Prefix::None;
+
+            if (percent)
+                result.base = Unit::Base::Percent;
+            else if (ohm)
+                result.base = Unit::Base::Ohm;
+            else if (farad)
+                result.base = Unit::Base::Farad;
+            else if (hertz)
+                result.base = Unit::Base::Hertz;
+            else if (volt)
+                result.base = Unit::Base::Volt;
+            else if (ampere)
+                result.base = Unit::Base::Ampere;
+            else if (celsius)
+                result.base = Unit::Base::Celsius;
+            else
+                assert(false);
+        }
+
+        return result;
+    }
+
+    std::string getUnitStr() const
+    {
+        Unit unit = getUnit();
+        std::string result;
+        switch (unit.prefix)
+        {
+            case Unit::Prefix::Nano:
+                result = "n";
+                break;
+            case Unit::Prefix::Micro:
+                result = "\u00B5";
+                break;
+            case Unit::Prefix::Milli:
+                result = "m";
+                break;
+            case Unit::Prefix::None:
+                break;
+            case Unit::Prefix::Kilo:
+                result = "k";
+                break;
+            case Unit::Prefix::Mega:
+                result = "M";
+                break;
+        }
+
+        switch (unit.base)
+        {
+            case Unit::Base::Volt:
+                result += "V";
+                break;
+            case Unit::Base::Ohm:
+                result += "\u03A9";
+                break;
+            case Unit::Base::Farad:
+                result += "F";
+                break;
+            case Unit::Base::Hertz:
+                result += "Hz";
+                break;
+            case Unit::Base::Percent:
+                result += "%";
+                break;
+            case Unit::Base::Celsius:
+                result += "\u00B0C";
+                break;
+            case Unit::Base::Ampere:
+                result += "A";
+                break;
+        }
 
         return result;
     }
@@ -199,7 +363,7 @@ int main(int argc, char** argv)
             std::cout << Frame::digitToChar(frame->getDigitSingleVal());
             std::cout << '"';
 
-            std::cout << " = " << frame->getFloatVal();
+            std::cout << " = " << frame->getFloatVal() << ' ' << frame->getUnitStr();
 
             {
                 std::lock_guard<std::mutex> guard = std::lock_guard{framesMutex};
@@ -260,10 +424,18 @@ int main(int argc, char** argv)
         if (frames.empty())
             return true;
         const Frame* const frame = frames.back().get();
-        builder->get_widget<Gtk::Label>("lcd-display")->set_label(std::to_string(frame->getFloatVal()));
+        const auto strVal = isnanf(frame->getFloatVal()) ? "-------" : std::format("{:^ 3.3f}", frame->getFloatVal());
+        builder->get_widget<Gtk::Label>("lcd-display-1")->set_label(strVal);
+        builder->get_widget<Gtk::Label>("lcd-display-2")->set_label(frame->getUnitStr());
         return true;
     }, 50);
 
+    Glib::signal_timeout().connect([&](){
+        auto cssProv = Gtk::CssProvider::create();
+        cssProv->load_from_path("../src/style.css");
+        Gtk::StyleContext::add_provider_for_display(mainWindow->get_display(), cssProv, GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+        return true;
+    }, 300);
 
     return app->run(argc, argv);
 }

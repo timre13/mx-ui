@@ -61,7 +61,32 @@
                                 </style>
 
                                 <child>
-                                    <object class="GtkLabel" id="lcd-display">
+                                    <object class="GtkBox">
+                                        <property name="orientation">horizontal</property>
+                                        <property name="valign">center</property>
+                                        <property name="halign">center</property>
+                                        <property name="hexpand">true</property>
+
+                                        <child>
+                                            <object class="GtkLabel" id="lcd-display-1">
+                                                <property name="width-request">120</property>
+
+                                                <style>
+                                                    <class name="lcd-display" />
+                                                    <class name="lcd-display-1" />
+                                                </style>
+                                            </object>
+                                        </child>
+                                        <child>
+                                            <object class="GtkLabel" id="lcd-display-2">
+                                                <property name="width-request">20</property>
+
+                                                <style>
+                                                    <class name="lcd-display" />
+                                                    <class name="lcd-display-2" />
+                                                </style>
+                                            </object>
+                                        </child>
                                     </object>
                                 </child>
                             </object>

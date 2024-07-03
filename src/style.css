@@ -31,3 +31,9 @@
 .plot-area {
     background: #555555;
 }
+
+.lcd-display {
+    font-size: xx-large;
+    font-family: monoscape;
+    color: #55ffcc;
+}
