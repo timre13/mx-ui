@@ -427,6 +427,21 @@ int main(int argc, char** argv)
         const auto strVal = isnanf(frame->getFloatVal()) ? "-------" : std::format("{:^ 3.3f}", frame->getFloatVal());
         builder->get_widget<Gtk::Label>("lcd-display-1")->set_label(strVal);
         builder->get_widget<Gtk::Label>("lcd-display-2")->set_label(frame->getUnitStr());
+
+        auto setActivateLabel{[&](const std::string& id, bool active){
+            auto widget = builder->get_widget<Gtk::Label>("status-label-"+id);
+            if (active) widget->add_css_class("status-label-active");
+            else widget->remove_css_class("status-label-active");
+        }};
+
+        setActivateLabel("auto", frame->AUTO);
+        setActivateLabel("dc", frame->DC);
+        setActivateLabel("ac", frame->AC);
+        setActivateLabel("diode", frame->diode);
+        setActivateLabel("beep", frame->beep);
+        setActivateLabel("hold", frame->hold);
+        setActivateLabel("rel", frame->rel);
+        setActivateLabel("batt", frame->battery);
         return true;
     }, 50);
 

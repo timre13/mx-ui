@@ -24,7 +24,7 @@
 .main-box {
 }
 
-.left-box {
+.lcd-box {
     border: 1px solid gray;
 }
 
@@ -36,4 +36,19 @@
     font-size: xx-large;
     font-family: monoscape;
     color: #55ffcc;
+}
+
+.status-label {
+    border: 2px solid gray;
+    background: #555555;
+}
+
+.status-label-active {
+    background: green;
+}
+
+.status-label-active.status-label-red {
+    background: red;
+    color: yellow;
+    font-weight: bold;
 }

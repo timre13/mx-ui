@@ -54,11 +54,96 @@
 
                         <child>
                             <object class="GtkBox">
+                                <property name="orientation">vertical</property>
                                 <property name="width-request">250</property>
+                                <property name="vexpand">true</property>
+                                <property name="valign">center</property>
 
                                 <style>
                                     <class name="left-box" />
                                 </style>
+
+                                <child>
+                                    <object class="GtkFlowBox">
+                                        <child>
+                                            <object class="GtkLabel" id="status-label-dc">
+                                                <property name="label">DC</property>
+
+                                                <style>
+                                                    <class name="status-label" />
+                                                </style>
+                                            </object>
+                                        </child>
+                                        <child>
+                                            <object class="GtkLabel" id="status-label-ac">
+                                                <property name="label">AC</property>
+
+                                                <style>
+                                                    <class name="status-label" />
+                                                </style>
+                                            </object>
+                                        </child>
+                                        <child>
+                                            <object class="GtkLabel" id="status-label-auto">
+                                                <property name="label">AUTO</property>
+
+                                                <style>
+                                                    <class name="status-label" />
+                                                </style>
+                                            </object>
+                                        </child>
+                                        <child>
+                                            <object class="GtkLabel" id="status-label-diode">
+                                                <property name="label">DIODE</property>
+
+                                                <style>
+                                                    <class name="status-label" />
+                                                </style>
+                                            </object>
+                                        </child>
+                                        <child>
+                                            <object class="GtkLabel" id="status-label-beep">
+                                                <property name="label">BEEP</property>
+
+                                                <style>
+                                                    <class name="status-label" />
+                                                </style>
+                                            </object>
+                                        </child>
+                                        <child>
+                                            <object class="GtkLabel" id="status-label-hold">
+                                                <property name="label">HOLD</property>
+
+                                                <style>
+                                                    <class name="status-label" />
+                                                </style>
+                                            </object>
+                                        </child>
+                                        <child>
+                                            <object class="GtkLabel" id="status-label-rel">
+                                                <property name="label">REL</property>
+
+                                                <style>
+                                                    <class name="status-label" />
+                                                </style>
+                                            </object>
+                                        </child>
+                                        <child>
+                                            <object class="GtkLabel" id="status-label-batt">
+                                                <property name="label">BATT</property>
+
+                                                <style>
+                                                    <class name="status-label" />
+                                                    <class name="status-label-red" />
+                                                </style>
+                                            </object>
+                                        </child>
+
+                                        <style>
+                                            <class name="lcd-status-box" />
+                                        </style>
+                                    </object>
+                                </child>
 
                                 <child>
                                     <object class="GtkBox">
@@ -66,6 +151,7 @@
                                         <property name="valign">center</property>
                                         <property name="halign">center</property>
                                         <property name="hexpand">true</property>
+                                        <property name="homogeneous">true</property>
 
                                         <child>
                                             <object class="GtkLabel" id="lcd-display-1">
@@ -87,6 +173,10 @@
                                                 </style>
                                             </object>
                                         </child>
+
+                                        <style>
+                                            <class name="lcd-box" />
+                                        </style>
                                     </object>
                                 </child>
                             </object>
