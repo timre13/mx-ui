@@ -58,6 +58,7 @@
                                 <property name="width-request">250</property>
                                 <property name="vexpand">true</property>
                                 <property name="valign">center</property>
+                                <property name="spacing">10</property>
 
                                 <style>
                                     <class name="left-box" />
@@ -65,9 +66,13 @@
 
                                 <child>
                                     <object class="GtkFlowBox">
+                                        <property name="max-children-per-line">8</property>
+
                                         <child>
                                             <object class="GtkLabel" id="status-label-dc">
                                                 <property name="label">DC</property>
+                                                <property name="width-request">50</property>
+                                                <property name="halign">start</property>
 
                                                 <style>
                                                     <class name="status-label" />
@@ -77,6 +82,8 @@
                                         <child>
                                             <object class="GtkLabel" id="status-label-ac">
                                                 <property name="label">AC</property>
+                                                <property name="width-request">50</property>
+                                                <property name="halign">start</property>
 
                                                 <style>
                                                     <class name="status-label" />
@@ -86,6 +93,8 @@
                                         <child>
                                             <object class="GtkLabel" id="status-label-auto">
                                                 <property name="label">AUTO</property>
+                                                <property name="width-request">50</property>
+                                                <property name="halign">start</property>
 
                                                 <style>
                                                     <class name="status-label" />
@@ -95,6 +104,8 @@
                                         <child>
                                             <object class="GtkLabel" id="status-label-diode">
                                                 <property name="label">DIODE</property>
+                                                <property name="width-request">50</property>
+                                                <property name="halign">start</property>
 
                                                 <style>
                                                     <class name="status-label" />
@@ -104,6 +115,8 @@
                                         <child>
                                             <object class="GtkLabel" id="status-label-beep">
                                                 <property name="label">BEEP</property>
+                                                <property name="width-request">50</property>
+                                                <property name="halign">start</property>
 
                                                 <style>
                                                     <class name="status-label" />
@@ -113,6 +126,8 @@
                                         <child>
                                             <object class="GtkLabel" id="status-label-hold">
                                                 <property name="label">HOLD</property>
+                                                <property name="width-request">50</property>
+                                                <property name="halign">start</property>
 
                                                 <style>
                                                     <class name="status-label" />
@@ -122,6 +137,8 @@
                                         <child>
                                             <object class="GtkLabel" id="status-label-rel">
                                                 <property name="label">REL</property>
+                                                <property name="width-request">50</property>
+                                                <property name="halign">start</property>
 
                                                 <style>
                                                     <class name="status-label" />
@@ -131,6 +148,8 @@
                                         <child>
                                             <object class="GtkLabel" id="status-label-batt">
                                                 <property name="label">BATT</property>
+                                                <property name="width-request">50</property>
+                                                <property name="halign">start</property>
 
                                                 <style>
                                                     <class name="status-label" />
