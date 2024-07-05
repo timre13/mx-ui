@@ -202,7 +202,7 @@
                         </child>
 
                         <child>
-                            <object class="GtkDrawingArea">
+                            <object class="GtkDrawingArea" id="plot-area">
                                 <property name="width-request">500</property>
                                 <property name="vexpand">true</property>
                                 <property name="hexpand">true</property>

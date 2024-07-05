@@ -168,6 +168,12 @@ public:
         return result;
     }
 
+    float getFloatValOrZero() const
+    {
+        const float result = getFloatVal();
+        return std::isnan(result) ? 0 : result;
+    }
+
     Unit getUnit() const
     {
         Unit result{};
@@ -299,14 +305,15 @@ enum class ConnStatus
     Connected,
 };
 
+std::vector<std::unique_ptr<Frame>> frames;
+std::mutex framesMutex{};
+
 int main(int argc, char** argv)
 {
     Gtk::ApplicationWindow* mainWindow{};
     Glib::RefPtr<Gtk::Builder> builder{};
     ConnStatus connStatus = ConnStatus::Disconnected;
 
-    std::vector<std::unique_ptr<Frame>> frames;
-    std::mutex framesMutex{};
     bool stayConnected = true;
 
     std::thread connThread{[&](){
@@ -409,6 +416,60 @@ int main(int argc, char** argv)
             }
         });
 
+        auto drawingArea = builder->get_widget<Gtk::DrawingArea>("plot-area");
+        assert(drawingArea);
+        drawingArea->set_draw_func([drawingArea](const Cairo::RefPtr<Cairo::Context>& cont, int width, int height){
+            std::cout << "Redrawing: w = " << width << ", h = " << height << '\n';
+
+            auto styleCont = drawingArea->get_style_context();
+            styleCont->render_background(cont, 0, 0, width, height);
+
+            const double middleY = height/2.;
+
+            {
+                cont->set_source_rgba(0.1, 0.1, 0.1, 0.8);
+                cont->set_line_width(0.5);
+                static constexpr int gap = 20;
+                for (int i{}; i < width/gap; i++)
+                {
+                    if (i % 2)
+                    {
+                        cont->move_to(i*gap, middleY);
+                        cont->line_to((i+1)*gap, middleY);
+                    }
+                }
+                cont->stroke();
+            }
+
+            if (!frames.empty())
+            {
+                cont->set_line_width(1);
+                cont->set_source_rgb(0.3, 1.0, 0.8);
+                cont->move_to(0, middleY);
+                const int framesToDraw = std::min((int)std::ceil(width/10), (int)frames.size());
+                int maxDiff{};
+                {
+                    float maxVal = frames[0]->getFloatValOrZero();
+                    for (size_t i=frames.size()-framesToDraw; i < frames.size(); ++i)
+                        if (frames[i]->getFloatValOrZero() > maxVal)
+                            maxVal = frames[i]->getFloatValOrZero();
+                    float minVal = frames[0]->getFloatValOrZero();
+                    for (size_t i=frames.size()-framesToDraw; i < frames.size(); ++i)
+                        if (frames[i]->getFloatValOrZero() < minVal)
+                            minVal = frames[i]->getFloatValOrZero();
+                    maxDiff = std::max(maxVal, std::abs(minVal));
+                }
+                std::cout << "maxdiff: " << maxDiff << '\n';
+                for (int i{}; i < framesToDraw; ++i)
+                {
+                    const double diff = frames[frames.size()-framesToDraw+i]->getFloatValOrZero()/maxDiff*(middleY-10);
+                    std::cout << i << '\t' << (i+1)*10 << '\t' << middleY+(std::isnan(diff) || std::isinf(diff) ? 0 : diff) << '\n';
+                    cont->line_to((i+1)*10, middleY-(std::isnan(diff) || std::isinf(diff) ? 0 : diff));
+                }
+                cont->stroke();
+            }
+        });
+
         mainWindow->present();
     });
 
@@ -442,6 +503,8 @@ int main(int argc, char** argv)
         setActivateLabel("hold", frame->hold);
         setActivateLabel("rel", frame->rel);
         setActivateLabel("batt", frame->battery);
+
+        builder->get_widget<Gtk::DrawingArea>("plot-area")->queue_draw();
         return true;
     }, 50);
 

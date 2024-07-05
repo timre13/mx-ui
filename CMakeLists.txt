@@ -4,7 +4,7 @@ project(mx-ui VERSION 1.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
-set(CMAKE_CXX_FLAGS "-g3 -ggdb -D_REENTRANT -Wall -Wextra -Wpedantic")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -g3 -ggdb -D_REENTRANT -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_BACKTRACE -D_GLIBCXX_CONCEPT_CHECKS")
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
 find_package(PkgConfig)
