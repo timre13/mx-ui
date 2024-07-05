@@ -59,6 +59,7 @@ public:
         } base;
     };
 
+    time_t timestamp{};
     bool AUTO{};
     bool DC{};
     bool AC{};
@@ -89,8 +90,10 @@ public:
     bool celsius{};
     bool milliVolt{};
 
-    Frame(uint8_t buf[14])
+    Frame(uint8_t buf[14], time_t ts)
     {
+        timestamp       = ts;
+
         AUTO            = (buf[0] & (1 << 1)) >> 1;
         DC              = (buf[0] & (1 << 2)) >> 2;
         AC              = (buf[0] & (1 << 3)) >> 3;
@@ -353,8 +356,8 @@ int main(int argc, char** argv)
             //    continue;
             //std::cout << std::bitset<8>(buf[0]);
 
-#if 1
-            auto frame = std::make_unique<Frame>(buf);
+            auto frame = std::make_unique<Frame>(buf, std::time(nullptr));
+#if 0
             std::cout << '"';
             std::cout << (frame->isNegative ? "-" : " ");
             std::cout << Frame::digitToChar(frame->getDigitThousandVal());
@@ -362,18 +365,15 @@ int main(int argc, char** argv)
             std::cout << Frame::digitToChar(frame->getDigitTenVal());
             std::cout << Frame::digitToChar(frame->getDigitSingleVal());
             std::cout << '"';
-
             std::cout << " = " << frame->getFloatVal() << ' ' << frame->getUnitStr();
+            std::cout << '\n';
+            std::cout << std::flush;
+#endif
 
             {
                 std::lock_guard<std::mutex> guard = std::lock_guard{framesMutex};
                 frames.push_back(std::move(frame));
             }
-            //std::cout << std::bitset<8>(frame.digitSingle) << '\n';
-#endif
-
-            std::cout << '\n';
-            std::cout << std::flush;
         }
         tcsetattr(port, TCSANOW, &oldTio);
         return 0;
