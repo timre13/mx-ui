@@ -313,6 +313,7 @@ int main(int argc, char** argv)
     Gtk::ApplicationWindow* mainWindow{};
     Glib::RefPtr<Gtk::Builder> builder{};
     ConnStatus connStatus = ConnStatus::Disconnected;
+    Glib::Dispatcher dispatcher{};
 
     bool stayConnected = true;
 
@@ -381,6 +382,7 @@ int main(int argc, char** argv)
                 std::lock_guard<std::mutex> guard = std::lock_guard{framesMutex};
                 frames.push_back(std::move(frame));
             }
+            dispatcher.emit();
         }
         tcsetattr(port, TCSANOW, &oldTio);
         return 0;
@@ -480,10 +482,11 @@ int main(int argc, char** argv)
         std::cout << "Done\n";
     });
 
-    Glib::signal_timeout().connect([&](){ // -> bool
+    dispatcher.connect([&](){
+        std::cout << "Updating GUI\n" << std::flush;
         std::lock_guard<std::mutex> guard = std::lock_guard{framesMutex};
         if (frames.empty())
-            return true;
+            return;
         const Frame* const frame = frames.back().get();
         const auto strVal = isnanf(frame->getFloatVal()) ? "-------" : std::format("{:^ 3.3f}", frame->getFloatVal());
         builder->get_widget<Gtk::Label>("lcd-display-1")->set_label(strVal);
@@ -505,8 +508,8 @@ int main(int argc, char** argv)
         setActivateLabel("batt", frame->battery);
 
         builder->get_widget<Gtk::DrawingArea>("plot-area")->queue_draw();
-        return true;
-    }, 50);
+        return;
+    });
 
     Glib::signal_timeout().connect([&](){
         auto cssProv = Gtk::CssProvider::create();
