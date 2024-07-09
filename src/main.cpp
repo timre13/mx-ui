@@ -424,6 +424,7 @@ int main(int argc, char** argv)
         drawingArea->set_draw_func([drawingArea, &plotGap](const Cairo::RefPtr<Cairo::Context>& cont, int width, int height){
             //std::cout << "Redrawing: w = " << width << ", h = " << height << '\n';
             std::cout << "Gap: " << plotGap << '\n';
+            std::cout << "frames.size(): " << frames.size() << '\n';
 
             auto styleCont = drawingArea->get_style_context();
             styleCont->render_background(cont, 0, 0, width, height);
@@ -446,10 +447,12 @@ int main(int argc, char** argv)
 
             if (!frames.empty())
             {
+                std::lock_guard<std::mutex> guard = std::lock_guard{framesMutex};
+
                 cont->set_line_width(1);
                 cont->set_source_rgb(0.3, 1.0, 0.8);
                 cont->move_to(0, middleY);
-                const int framesToDraw = std::min((int)std::ceil(width/plotGap), (int)frames.size());
+                const int framesToDraw = std::min((int)width/plotGap, (int)frames.size());
                 int maxDiff{};
                 {
                     float maxVal = frames[0]->getFloatValOrZero();
@@ -462,12 +465,16 @@ int main(int argc, char** argv)
                             minVal = frames[i]->getFloatValOrZero();
                     maxDiff = std::max(maxVal, std::abs(minVal));
                 }
-                //std::cout << "maxdiff: " << maxDiff << '\n';
+                std::cout << "framesToDraw = "  << framesToDraw << std::endl;
                 for (int i{}; i < framesToDraw; ++i)
                 {
                     const double diff = frames[frames.size()-framesToDraw+i]->getFloatValOrZero()/maxDiff*(middleY-10);
-                    //std::cout << i << '\t' << (i+1)*10 << '\t' << middleY+(std::isnan(diff) || std::isinf(diff) ? 0 : diff) << '\n';
-                    cont->line_to((i+1)*plotGap, middleY-(std::isnan(diff) || std::isinf(diff) ? 0 : diff));
+                    const int x = width-framesToDraw*plotGap+(i+1)*plotGap;
+                    const int y = middleY-(std::isnan(diff) || std::isinf(diff) ? 0 : diff);
+                    //std::cout << i << '\t' << x << '\t' << y << '\n';
+                    if (i == 0)
+                        cont->move_to(x, y);
+                    cont->line_to(x, y);
                 }
                 cont->stroke();
             }
