@@ -436,12 +436,12 @@ int main(int argc, char** argv)
             {
                 cont->set_source_rgba(0.1, 0.1, 0.1, 0.8);
                 cont->set_line_width(0.5);
-                for (int i{}; i < width/plotGap; i++)
+                for (int i{}; i < width/10; i++)
                 {
                     if (i % 2)
                     {
-                        cont->move_to(i*plotGap, middleY);
-                        cont->line_to((i+1)*plotGap, middleY);
+                        cont->move_to(i*10, middleY);
+                        cont->line_to((i+1)*10, middleY);
                     }
                 }
                 cont->stroke();
