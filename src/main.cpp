@@ -485,6 +485,11 @@ int main(int argc, char** argv)
                     const int endOffs = (width-*canvasMouseX+plotGap/2)/plotGap;
                     if (endOffs < (int)frames.size())
                     {
+                        cont->set_source_rgb(0.2, 0.8, 0.8);
+                        cont->move_to(width-endOffs*plotGap, 0);
+                        cont->line_to(width-endOffs*plotGap, height);
+                        cont->stroke();
+
                         const Frame* const hoveredFrame = frames[frames.size()-1-endOffs].get();
                         std::cout << "Value: " << hoveredFrame->getFloatVal() << std::endl;
                         cont->set_source_rgb(1.0, 1.0, 1.0);
