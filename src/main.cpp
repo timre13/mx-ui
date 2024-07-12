@@ -482,9 +482,10 @@ int main(int argc, char** argv)
 
                 if (canvasMouseX.has_value())
                 {
-                    if ((width-*canvasMouseX)/plotGap < (int)frames.size())
+                    const int endOffs = (width-*canvasMouseX+plotGap/2)/plotGap;
+                    if (endOffs < (int)frames.size())
                     {
-                        const Frame* const hoveredFrame = frames[frames.size()-1-(width-*canvasMouseX)/plotGap].get();
+                        const Frame* const hoveredFrame = frames[frames.size()-1-endOffs].get();
                         std::cout << "Value: " << hoveredFrame->getFloatVal() << std::endl;
                         cont->set_source_rgb(1.0, 1.0, 1.0);
                         cont->select_font_face("monoscape", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::NORMAL);
