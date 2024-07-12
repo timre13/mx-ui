@@ -315,6 +315,8 @@ int main(int argc, char** argv)
     ConnStatus connStatus = ConnStatus::Disconnected;
     Glib::Dispatcher dispatcher{};
     int plotGap = 20;
+    std::optional<int> canvasMouseX{};
+    std::optional<int> canvasMouseY{};
 
     bool stayConnected = true;
 
@@ -421,10 +423,10 @@ int main(int argc, char** argv)
 
         auto drawingArea = builder->get_widget<Gtk::DrawingArea>("plot-area");
         assert(drawingArea);
-        drawingArea->set_draw_func([drawingArea, &plotGap](const Cairo::RefPtr<Cairo::Context>& cont, int width, int height){
+        drawingArea->set_draw_func([drawingArea, &plotGap, &canvasMouseX, &canvasMouseY](const Cairo::RefPtr<Cairo::Context>& cont, int width, int height){
             //std::cout << "Redrawing: w = " << width << ", h = " << height << '\n';
-            std::cout << "Gap: " << plotGap << '\n';
-            std::cout << "frames.size(): " << frames.size() << '\n';
+            //std::cout << "Gap: " << plotGap << '\n';
+            //std::cout << "frames.size(): " << frames.size() << '\n';
 
             auto styleCont = drawingArea->get_style_context();
             styleCont->render_background(cont, 0, 0, width, height);
@@ -465,7 +467,7 @@ int main(int argc, char** argv)
                             minVal = frames[i]->getFloatValOrZero();
                     maxDiff = std::max(maxVal, std::abs(minVal));
                 }
-                std::cout << "framesToDraw = "  << framesToDraw << std::endl;
+                //std::cout << "framesToDraw = "  << framesToDraw << std::endl;
                 for (int i{}; i < framesToDraw; ++i)
                 {
                     const double diff = frames[frames.size()-framesToDraw+i]->getFloatValOrZero()/maxDiff*(middleY-10);
@@ -477,6 +479,26 @@ int main(int argc, char** argv)
                     cont->line_to(x, y);
                 }
                 cont->stroke();
+
+                if (canvasMouseX.has_value())
+                {
+                    if ((width-*canvasMouseX)/plotGap < (int)frames.size())
+                    {
+                        const Frame* const hoveredFrame = frames[frames.size()-1-(width-*canvasMouseX)/plotGap].get();
+                        std::cout << "Value: " << hoveredFrame->getFloatVal() << std::endl;
+                        cont->set_source_rgb(1.0, 1.0, 1.0);
+                        cont->select_font_face("monoscape", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::NORMAL);
+                        cont->set_font_size(18);
+                        Cairo::TextExtents extends;
+                        const std::string text = std::format("Value: {:^ 3.3f} {}", hoveredFrame->getFloatVal(), hoveredFrame->getUnitStr());
+                        cont->get_text_extents(text, extends);
+                        assert(canvasMouseY.has_value());
+                        const int textX = std::min(*canvasMouseX+5, width-(int)extends.width-5);
+                        const int textY = std::max(*canvasMouseY-5, 15);
+                        cont->move_to(textX, textY);
+                        cont->show_text(text);
+                    }
+                }
             }
         });
 
@@ -485,7 +507,7 @@ int main(int argc, char** argv)
         drawingArea->add_controller(drawingAreaScrollController);
         drawingAreaScrollController->set_flags(Gtk::EventControllerScroll::Flags::VERTICAL);
         drawingAreaScrollController->signal_scroll().connect([&plotGap, builder](double, double scroll){
-            std::cout << "Scroll: " << scroll << '\n';
+            //std::cout << "Scroll: " << scroll << '\n';
             plotGap -= scroll;
             plotGap = std::max(1, plotGap);
             auto drawingArea = builder->get_widget<Gtk::DrawingArea>("plot-area");
@@ -494,6 +516,23 @@ int main(int argc, char** argv)
             return true;
         }, false);
 
+        auto drawingAreaMotionController = Gtk::EventControllerMotion::create();
+        drawingArea->add_controller(drawingAreaMotionController);
+        drawingAreaMotionController->signal_motion().connect([&canvasMouseX, &canvasMouseY, builder](double x, double y){
+            //std::cout << "Move: x=" << x << ", y=" << y << '\n';
+            canvasMouseX = (int)x;
+            canvasMouseY = (int)y;
+            auto drawingArea = builder->get_widget<Gtk::DrawingArea>("plot-area");
+            assert(drawingArea);
+            drawingArea->queue_draw();
+        }, false);
+        drawingAreaMotionController->signal_leave().connect([&canvasMouseX, &canvasMouseY, builder](){
+            canvasMouseX.reset();
+            canvasMouseY.reset();
+            auto drawingArea = builder->get_widget<Gtk::DrawingArea>("plot-area");
+            assert(drawingArea);
+            drawingArea->queue_draw();
+        }, false);
         mainWindow->present();
     });
 
