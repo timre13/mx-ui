@@ -414,12 +414,12 @@ int main(int argc, char** argv)
 
     auto app = Gtk::Application::create("xyz.timre13.mx-ui");
     app->signal_activate().connect([&](){
-        builder = Gtk::Builder::create_from_file("../src/main.ui");
+        builder = Gtk::Builder::create_from_resource("/data/main.ui");
         mainWindow = builder->get_widget<Gtk::Window>("main-window");
         mainWindow->set_application(app);
 
         auto cssProv = Gtk::CssProvider::create();
-        cssProv->load_from_path("../src/style.css");
+        cssProv->load_from_resource("/data/style.css");
         Gtk::StyleContext::add_provider_for_display(mainWindow->get_display(), cssProv, GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
         builder->get_widget<Gtk::Button>("connect-button")->signal_clicked().connect([&](){
@@ -619,12 +619,14 @@ int main(int argc, char** argv)
         return;
     });
 
+    /*
     Glib::signal_timeout().connect([&](){
         auto cssProv = Gtk::CssProvider::create();
         cssProv->load_from_path("../src/style.css");
         Gtk::StyleContext::add_provider_for_display(mainWindow->get_display(), cssProv, GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
         return true;
     }, 300);
+    */
 
     return app->run(argc, argv);
 }
