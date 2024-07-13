@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="https://gitlab.gnome.org/GNOME/gtk/-/raw/HEAD/tools/gtk4builder.rng"?>
 <interface>
     <requires lib="gtk" version="4.0" />
-    <object class="GtkApplicationWindow" id="main-window">
+    <object class="GtkWindow" id="main-window">
         <property name="title">MX-UI</property>
         <property name="default-width">1500</property>
         <property name="default-height">800</property>
@@ -14,30 +15,52 @@
                     <object class="GtkBox">
                         <property name="orientation">horizontal</property>
                         <property name="spacing">20</property>
+
+                        <child>
+                            <object class="GtkBox">
+                                <property name="orientation">horizontal</property>
+                                <property name="spacing">20</property>
+                                <property name="hexpand">true</property>
+
+                                <child>
+                                    <object class="GtkButton" id="connect-button">
+                                        <property name="label">CONNECT</property>
+                                        <style>
+                                            <class name="connect-button" />
+                                        </style>
+                                    </object>
+                                </child>
+                                <child>
+                                    <object class="GtkLabel" id="status-display">
+                                        <property name="label">Disconnected</property>
+                                        <property name="tooltip-text">Status</property>
+                                        <style>
+                                            <class name="status-display" />
+                                        </style>
+                                        <style>
+                                            <class name="status-display-disconnected" />
+                                        </style>
+                                    </object>
+                                </child>
+                            </object>
+                        </child>
+
+                        <child>
+                            <object class="GtkBox">
+                                <property name="orientation">horizontal</property>
+                                <property name="spacing">20</property>
+
+                                <child>
+                                    <object class="GtkButton" id="export-button">
+                                        <property name="label">Export</property>
+                                    </object>
+                                </child>
+                            </object>
+                        </child>
+
                         <style>
                             <class name="top-bar" />
                         </style>
-
-                        <child>
-                            <object class="GtkButton" id="connect-button">
-                                <property name="label">CONNECT</property>
-                                <style>
-                                    <class name="connect-button" />
-                                </style>
-                            </object>
-                        </child>
-                        <child>
-                            <object class="GtkLabel" id="status-display">
-                                <property name="label">Disconnected</property>
-                                <property name="tooltip-text">Status</property>
-                                <style>
-                                    <class name="status-display" />
-                                </style>
-                                <style>
-                                    <class name="status-display-disconnected" />
-                                </style>
-                            </object>
-                        </child>
                     </object>
                 </child>
 

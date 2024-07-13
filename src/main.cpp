@@ -12,9 +12,13 @@
 #include <gtkmm/application.h>
 #include <thread>
 #include <format>
+#include <fstream>
+#include <chrono>
 
 #define BAUDRATE 2400
 #define READ_MIN 14
+
+using timestamp_t = std::chrono::system_clock::time_point;
 
 class Frame
 {
@@ -59,7 +63,7 @@ public:
         } base;
     };
 
-    time_t timestamp{};
+    timestamp_t timestamp{};
     bool AUTO{};
     bool DC{};
     bool AC{};
@@ -90,7 +94,7 @@ public:
     bool celsius{};
     bool milliVolt{};
 
-    Frame(uint8_t buf[14], time_t ts)
+    Frame(uint8_t buf[14], const timestamp_t& ts)
     {
         timestamp       = ts;
 
@@ -305,12 +309,29 @@ enum class ConnStatus
     Connected,
 };
 
+static std::string formatTime(const timestamp_t& point)
+{
+    const auto zt = std::chrono::zoned_time{std::chrono::current_zone(), point};
+    return std::format("{0:%F}T{0:%T}", zt);
+}
+
+static void exportData(const std::string& path, const std::vector<std::unique_ptr<Frame>>& data)
+{
+    std::ofstream file{path};
+    file << "Value;Unit;Timestamp\n";
+    for (auto& frame : data)
+    {
+        file << std::format("{};{};{}", frame->getFloatVal(), frame->getUnitStr(), formatTime(frame->timestamp)) << '\n';
+    }
+    file.close();
+}
+
 std::vector<std::unique_ptr<Frame>> frames;
 std::mutex framesMutex{};
 
 int main(int argc, char** argv)
 {
-    Gtk::ApplicationWindow* mainWindow{};
+    Gtk::Window* mainWindow{};
     Glib::RefPtr<Gtk::Builder> builder{};
     ConnStatus connStatus = ConnStatus::Disconnected;
     Glib::Dispatcher dispatcher{};
@@ -367,7 +388,7 @@ int main(int argc, char** argv)
             //    continue;
             //std::cout << std::bitset<8>(buf[0]);
 
-            auto frame = std::make_unique<Frame>(buf, std::time(nullptr));
+            auto frame = std::make_unique<Frame>(buf, std::chrono::system_clock::now());
 #if 0
             std::cout << '"';
             std::cout << (frame->isNegative ? "-" : " ");
@@ -394,7 +415,7 @@ int main(int argc, char** argv)
     auto app = Gtk::Application::create("xyz.timre13.mx-ui");
     app->signal_activate().connect([&](){
         builder = Gtk::Builder::create_from_file("../src/main.ui");
-        mainWindow = builder->get_widget<Gtk::ApplicationWindow>("main-window");
+        mainWindow = builder->get_widget<Gtk::Window>("main-window");
         mainWindow->set_application(app);
 
         auto cssProv = Gtk::CssProvider::create();
@@ -539,7 +560,27 @@ int main(int argc, char** argv)
             assert(drawingArea);
             drawingArea->queue_draw();
         }, false);
-        mainWindow->present();
+
+        builder->get_widget<Gtk::Button>("export-button")->signal_clicked().connect([mainWindow](){
+            GtkFileDialog* dialog = gtk_file_dialog_new();
+            gtk_file_dialog_save(dialog, mainWindow->gobj(), nullptr, [](GObject *source_object, GAsyncResult *res, gpointer){
+                GError** err = nullptr;
+                if (GFile* file = gtk_file_dialog_save_finish(GTK_FILE_DIALOG(source_object), res, err))
+                {
+                    std::string path = g_file_get_path(file);
+                    std::cout << "Exporting to " << path << std::endl;
+                    exportData(path, frames);
+                    g_object_unref(file);
+                }
+                if (err)
+                {
+                    std::cout << "File chooser error" << std::endl;
+                    g_error_free(*err);
+                }
+            }, nullptr);
+        });
+
+        mainWindow->show();
     });
 
     app->signal_shutdown().connect([&](){
