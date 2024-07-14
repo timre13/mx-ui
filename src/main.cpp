@@ -13,12 +13,6 @@
 #include "Frame.h"
 #include "protocol.h"
 
-enum class ConnStatus
-{
-    Disconnected,
-    Connected,
-};
-
 static std::string formatTime(const timestamp_t& point)
 {
     const auto zt = std::chrono::zoned_time{std::chrono::current_zone(), point};
@@ -43,7 +37,7 @@ int main(int argc, char** argv)
 {
     Gtk::Window* mainWindow{};
     Glib::RefPtr<Gtk::Builder> builder{};
-    ConnStatus connStatus = ConnStatus::Disconnected;
+    ConnStatus connStatus = ConnStatus::Closed;
     Glib::Dispatcher dispatcher{};
     int plotGap = 20;
     std::optional<int> canvasMouseX{};
@@ -51,7 +45,7 @@ int main(int argc, char** argv)
 
     bool stayConnected = true;
 
-    std::thread connThread{&startReadingData, std::ref(stayConnected), std::ref(frames), std::ref(framesMutex), std::ref(dispatcher)};
+    std::thread connThread{&startReadingData, std::ref(stayConnected), std::ref(connStatus), std::ref(frames), std::ref(framesMutex), std::ref(dispatcher)};
 
     auto app = Gtk::Application::create("xyz.timre13.mx-ui");
     app->signal_activate().connect([&](){
@@ -65,22 +59,20 @@ int main(int argc, char** argv)
 
         builder->get_widget<Gtk::Button>("connect-button")->signal_clicked().connect([&](){
             std::cout << "Clicked\n";
-
-            auto statDisp = builder->get_widget<Gtk::Label>("status-display");
-            if (connStatus == ConnStatus::Disconnected)
-            {
-                connStatus = ConnStatus::Connected;
-                statDisp->remove_css_class("status-display-disconnected");
-                statDisp->add_css_class("status-display-connected");
-                statDisp->set_label("Connected");
-            }
-            else if (connStatus == ConnStatus::Connected)
-            {
-                connStatus = ConnStatus::Disconnected;
-                statDisp->remove_css_class("status-display-sconnected");
-                statDisp->add_css_class("status-display-disconnected");
-                statDisp->set_label("Disconnected");
-            }
+            //if (connStatus == ConnStatus::Closed)
+            //{
+            //    connStatus = ConnStatus::Connected;
+            //    statDisp->remove_css_class("status-display-disconnected");
+            //    statDisp->add_css_class("status-display-connected");
+            //    statDisp->set_label("Connected");
+            //}
+            //else if (connStatus == ConnStatus::Connected)
+            //{
+            //    connStatus = ConnStatus::Disconnected;
+            //    statDisp->remove_css_class("status-display-sconnected");
+            //    statDisp->add_css_class("status-display-disconnected");
+            //    statDisp->set_label("Disconnected");
+            //}
         });
 
         auto drawingArea = builder->get_widget<Gtk::DrawingArea>("plot-area");
@@ -233,6 +225,10 @@ int main(int argc, char** argv)
 
     dispatcher.connect([&](){
         std::cout << "Updating GUI\n" << std::flush;
+
+        auto statDisp = builder->get_widget<Gtk::Label>("status-display");
+        statDisp->set_markup(std::format("<span foreground='{}'>{}</span>", connStatusGetColor(connStatus), connStatusToStr(connStatus)));
+
         std::lock_guard<std::mutex> guard = std::lock_guard{framesMutex};
         if (frames.empty())
             return;
