@@ -43,9 +43,12 @@ int main(int argc, char** argv)
     std::optional<int> canvasMouseX{};
     std::optional<int> canvasMouseY{};
 
-    bool stayConnected = true;
+    std::atomic<bool> keepThreadAlive = true;
+    std::atomic<bool> stayConnected = true;
 
-    std::thread connThread{&startReadingData, std::ref(stayConnected), std::ref(connStatus), std::ref(frames), std::ref(framesMutex), std::ref(dispatcher)};
+    std::thread connThread{&startReadingData,
+        std::ref(keepThreadAlive), std::ref(stayConnected), std::ref(connStatus),
+        std::ref(frames), std::ref(framesMutex), std::ref(dispatcher)};
 
     auto app = Gtk::Application::create("xyz.timre13.mx-ui");
     app->signal_activate().connect([&](){
@@ -59,20 +62,7 @@ int main(int argc, char** argv)
 
         builder->get_widget<Gtk::Button>("connect-button")->signal_clicked().connect([&](){
             std::cout << "Clicked\n";
-            //if (connStatus == ConnStatus::Closed)
-            //{
-            //    connStatus = ConnStatus::Connected;
-            //    statDisp->remove_css_class("status-display-disconnected");
-            //    statDisp->add_css_class("status-display-connected");
-            //    statDisp->set_label("Connected");
-            //}
-            //else if (connStatus == ConnStatus::Connected)
-            //{
-            //    connStatus = ConnStatus::Disconnected;
-            //    statDisp->remove_css_class("status-display-sconnected");
-            //    statDisp->add_css_class("status-display-disconnected");
-            //    statDisp->set_label("Disconnected");
-            //}
+            stayConnected = !stayConnected;
         });
 
         auto drawingArea = builder->get_widget<Gtk::DrawingArea>("plot-area");
@@ -219,6 +209,7 @@ int main(int argc, char** argv)
     app->signal_shutdown().connect([&](){
         std::cout << "Shutting down\n";
         stayConnected = false;
+        keepThreadAlive = false;
         connThread.join();
         std::cout << "Done\n";
     });
@@ -228,6 +219,8 @@ int main(int argc, char** argv)
 
         auto statDisp = builder->get_widget<Gtk::Label>("status-display");
         statDisp->set_markup(std::format("<span foreground='{}'>{}</span>", connStatusGetColor(connStatus), connStatusToStr(connStatus)));
+
+        builder->get_widget<Gtk::Button>("connect-button")->set_label(connStatus == ConnStatus::Connected ? "DISCONNECT" : "CONNECT");
 
         std::lock_guard<std::mutex> guard = std::lock_guard{framesMutex};
         if (frames.empty())

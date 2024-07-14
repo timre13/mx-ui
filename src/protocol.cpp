@@ -9,6 +9,7 @@
 #include <iostream>
 #include <stdint.h>
 #include <chrono>
+#include <thread>
 #include "protocol.h"
 
 #define BAUDRATE 2400
@@ -19,7 +20,7 @@ std::string connStatusToStr(ConnStatus cs)
 {
     switch (cs)
     {
-    case ConnStatus::Closed:        return "Closed";
+    case ConnStatus::Closed:        return "Disconnected";
     case ConnStatus::Connecting:    return "Connecting";
     case ConnStatus::Connected:     return "Connected";
     case ConnStatus::FailedToOpen:  return "Failed to open port";
@@ -34,7 +35,7 @@ std::string connStatusGetColor(ConnStatus cs)
 {
     switch (cs)
     {
-    case ConnStatus::Closed:        return "teal";
+    case ConnStatus::Closed:        return "white";
     case ConnStatus::Connecting:    return "yellow";
     case ConnStatus::Connected:     return "lime";
     case ConnStatus::FailedToOpen:  return "red";
@@ -45,88 +46,121 @@ std::string connStatusGetColor(ConnStatus cs)
     assert(false);
 }
 
-void startReadingData(const bool& stayConnected, ConnStatus& connStatus, std::vector<std::unique_ptr<Frame>>& frames, std::mutex& framesMutex, Glib::Dispatcher& dispatcher)
+void startReadingData(
+        const std::atomic<bool>& keepThreadAlive, std::atomic<bool>& stayConnected, ConnStatus& connStatus,
+        std::vector<std::unique_ptr<Frame>>& frames, std::mutex& framesMutex,
+        Glib::Dispatcher& dispatcher)
 {
-    connStatus = ConnStatus::Connecting;
-    dispatcher.emit();
+    /*
+     * while keepThreadAlive:
+     *    while !stayConnected
+     *    do setup
+     *    while stayConnected
+     */
 
-    const int port = open("/dev/ttyUSB0", O_RDONLY | O_NOCTTY);
-
-    if (port == -1)
+    while (keepThreadAlive)
     {
-        std::cerr << "Failed to open port: " << strerror(errno) << '\n';
-        connStatus = ConnStatus::FailedToOpen;
+        // Wait until a connection is requested
+        while (!stayConnected && keepThreadAlive)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds{10});
+        }
+
+        connStatus = ConnStatus::Connecting;
         dispatcher.emit();
-        return;
-    }
 
-    std::cout << "Opened port, handle: " << port << '\n';
+        const int port = open("/dev/ttyUSB0", O_RDONLY | O_NOCTTY);
 
-    termios oldTio = termios{};
-    tcgetattr(port, &oldTio);
-
-    tcflush(port, TCIFLUSH);
-
-    termios newTio = termios{};
-    newTio.c_cflag = CRTSCTS | CS8 | CLOCAL | CREAD;
-    newTio.c_iflag = IGNPAR;
-    newTio.c_oflag = 0;
-    newTio.c_lflag = 0;
-    newTio.c_cc[VTIME] = 0;
-    newTio.c_cc[VMIN] = READ_MIN;
-    cfsetispeed(&newTio, B2400);
-    tcsetattr(port, TCSANOW, &newTio);
-
-    uint8_t buf[255]{};
-
-    std::cout << "Configured port\n";
-
-    connStatus = ConnStatus::Connected;
-    dispatcher.emit();
-    while (stayConnected)
-    {
-        fd_set fdSet;
-        FD_ZERO(&fdSet);
-        FD_SET(port, &fdSet);
-        timeval timeout{.tv_usec = READ_TIMEOUT_USEC};
-        int retVal = select(port+1, &fdSet, nullptr, nullptr, &timeout);
-        if (retVal == -1)
+        if (port == -1)
         {
-            std::cerr << "select() error: " << strerror(errno) << '\n';
-            connStatus = ConnStatus::IOError;
+            std::cerr << "Failed to open port: " << strerror(errno) << '\n';
+            connStatus = ConnStatus::FailedToOpen;
             dispatcher.emit();
-            return;
-        }
-        if (retVal == 0)
-        {
-            std::cerr << "Timed out" << '\n';
-            connStatus = ConnStatus::Timeout;
-            dispatcher.emit();
-            return;
+            stayConnected = false;
+            continue;
         }
 
-        int count = read(port, buf, 255);
-        if (count == -1)
-        {
-            std::cerr << "I/O error: " << strerror(errno) << '\n';
-            connStatus = ConnStatus::IOError;
-            dispatcher.emit();
-            return;
-        }
-        if (count == 0)
-        {
-            std::cout << "EOF\n";
-            break;
-        }
+        std::cout << "Opened port, handle: " << port << '\n';
 
-        auto frame = std::make_unique<Frame>(buf, std::chrono::system_clock::now());
-        {
-            std::lock_guard<std::mutex> guard = std::lock_guard{framesMutex};
-            frames.push_back(std::move(frame));
-        }
+        termios oldTio = termios{};
+        tcgetattr(port, &oldTio);
+
+        tcflush(port, TCIFLUSH);
+
+        termios newTio = termios{};
+        newTio.c_cflag = CRTSCTS | CS8 | CLOCAL | CREAD;
+        newTio.c_iflag = IGNPAR;
+        newTio.c_oflag = 0;
+        newTio.c_lflag = 0;
+        newTio.c_cc[VTIME] = 0;
+        newTio.c_cc[VMIN] = READ_MIN;
+        cfsetispeed(&newTio, B2400);
+        tcsetattr(port, TCSANOW, &newTio);
+
+        uint8_t buf[255]{};
+
+        std::cout << "Configured port\n";
+
+        connStatus = ConnStatus::Connected;
         dispatcher.emit();
+        while (true)
+        {
+            if (!stayConnected || !keepThreadAlive)
+            {
+                std::cout << "Connection closed by user\n";
+                connStatus = ConnStatus::Closed;
+                dispatcher.emit();
+                break;
+            }
+
+            fd_set fdSet;
+            FD_ZERO(&fdSet);
+            FD_SET(port, &fdSet);
+            timeval timeout{.tv_usec = READ_TIMEOUT_USEC};
+            int retVal = select(port+1, &fdSet, nullptr, nullptr, &timeout);
+            if (retVal == -1)
+            {
+                std::cerr << "select() error: " << strerror(errno) << '\n';
+                connStatus = ConnStatus::IOError;
+                dispatcher.emit();
+                stayConnected = false;
+                break;
+            }
+            if (retVal == 0)
+            {
+                std::cerr << "Timed out" << '\n';
+                connStatus = ConnStatus::Timeout;
+                dispatcher.emit();
+                stayConnected = false;
+                break;
+            }
+
+            int count = read(port, buf, 255);
+            if (count == -1)
+            {
+                std::cerr << "I/O error: " << strerror(errno) << '\n';
+                connStatus = ConnStatus::IOError;
+                dispatcher.emit();
+                stayConnected = false;
+                break;
+            }
+            if (count == 0)
+            {
+                std::cout << "EOF\n";
+                connStatus = ConnStatus::Eof;
+                dispatcher.emit();
+                stayConnected = false;
+                tcsetattr(port, TCSANOW, &oldTio);
+                close(port);
+                break;
+            }
+
+            auto frame = std::make_unique<Frame>(buf, std::chrono::system_clock::now());
+            {
+                std::lock_guard<std::mutex> guard = std::lock_guard{framesMutex};
+                frames.push_back(std::move(frame));
+            }
+            dispatcher.emit();
+        }
     }
-    tcsetattr(port, TCSANOW, &oldTio);
-    connStatus = ConnStatus::Eof;
-    dispatcher.emit();
 }

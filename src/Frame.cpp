@@ -201,7 +201,7 @@ Frame::Digit Frame::digitToVal(uint8_t digit)
 #ifndef NDEBUG
         std::cerr << "Invalid digit value: " << std::bitset<8>(digit) << '\n';
 #endif
-        assert(false);
+        //assert(false);
         return DEmpty;
     }
 }

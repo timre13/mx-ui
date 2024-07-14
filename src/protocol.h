@@ -21,4 +21,7 @@ enum class ConnStatus
 std::string connStatusToStr(ConnStatus cs);
 std::string connStatusGetColor(ConnStatus cs);
 
-void startReadingData(const bool& stayConnected, ConnStatus& connStatus, std::vector<std::unique_ptr<Frame>>& frames, std::mutex& framesMutex, Glib::Dispatcher& dispatcher);
+void startReadingData(
+        const std::atomic<bool>& keepThreadAlive, std::atomic<bool>& stayConnected, ConnStatus& connStatus,
+        std::vector<std::unique_ptr<Frame>>& frames, std::mutex& framesMutex,
+        Glib::Dispatcher& dispatcher);
