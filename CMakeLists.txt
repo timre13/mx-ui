@@ -56,6 +56,8 @@ set_source_files_properties(
 
 add_executable(${PROJECT_NAME}
     src/main.cpp
+    src/Frame.cpp
+    src/protocol.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/${GRESOURCE_OUT}
 )
 
