@@ -226,7 +226,7 @@ int main(int argc, char** argv)
         if (frames.empty())
             return;
         const Frame* const frame = frames.back().get();
-        const auto strVal = isnanf(frame->getFloatVal()) ? "-------" : std::format("{:^ 3.3f}", frame->getFloatVal());
+        const auto strVal = std::isnan(frame->getFloatVal()) ? "-------" : std::format("{:^ 3.3f}", frame->getFloatVal());
         builder->get_widget<Gtk::Label>("lcd-display-1")->set_label(strVal);
         builder->get_widget<Gtk::Label>("lcd-display-2")->set_label(frame->getUnitStr());
 
