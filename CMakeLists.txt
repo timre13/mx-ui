@@ -4,22 +4,30 @@ project(mx-ui VERSION 1.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -g3 -ggdb -D_REENTRANT -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_BACKTRACE -D_GLIBCXX_CONCEPT_CHECKS")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -g3 -ggdb -D_REENTRANT")
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
 find_package(PkgConfig)
 pkg_check_modules(GTKMM gtkmm-4.0)
+pkg_check_modules(GLIBMM glibmm-2.68)
+pkg_check_modules(GIOMM giomm-2.68)
 
 include_directories(
     ${GTKMM_INCLUDE_DIRS}
+    ${GLIBMM_INCLUDE_DIRS}
+    ${GIOMM_INCLUDE_DIRS}
 )
 
 link_directories(
     ${GTKMM_LIBRARY_DIRS}
+    ${GLIBMM_LIBRARY_DIRS}
+    ${GIOMM_LIBRARY_DIRS}
 )
 
 link_libraries(
     ${GTKMM_LIBRARIES}
+    ${GLIBMM_LIBRARIES}
+    ${GIOMM_LIBRARIES}
 )
 
 # https://stackoverflow.com/questions/63697778/how-to-use-glib-compile-resources-with-cmake
