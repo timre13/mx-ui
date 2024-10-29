@@ -184,7 +184,6 @@ static int readFrame(ConnStatus* connStatus, PlatformState* state, uint8_t* buf)
 
 static int readFrame(ConnStatus* connStatus, PlatformState* state, uint8_t* buf)
 {
-    *connStatus = ConnStatus::Closed;
     DWORD dwEventMask;
 	BOOL status = WaitCommEvent(state->port, &dwEventMask, nullptr);
 	if (status == FALSE)
