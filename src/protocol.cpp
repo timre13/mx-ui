@@ -50,7 +50,7 @@ std::string connStatusGetColor(ConnStatus cs)
 struct PlatformState
 {
 #ifdef __linux__
-    int port{};
+    int port{-1};
     termios oldTio{};
 #else
     HANDLE port{};
@@ -142,6 +142,44 @@ static int configurePort(PlatformState* state)
 
 #ifdef __linux__
 
+void closePort(PlatformState* state)
+{
+    if (tcsetattr(state->port, TCSANOW, &state->oldTio) == -1)
+    {
+        std::cerr << "Failed to reset port configuration\n";
+    }
+    if (close(state->port) == -1)
+    {
+        std::cerr << "Failed to close port\n";
+    }
+    else
+    {
+        std::cout << "Closed port\n";
+    }
+    state->oldTio = {};
+    state->port = -1;
+}
+
+#else
+
+void closePort(PlatformState* state)
+{
+    assert(state->port);
+    if (CloseHandle(state->port) == 0)
+    {
+        std::cerr << "Failed to close port (code " << GetLastError() << ")\n";
+    }
+    else
+    {
+        std::cout << "Closed port\n";
+    }
+    state->port = nullptr;
+}
+
+#endif
+
+#ifdef __linux__
+
 static int readFrame(ConnStatus* connStatus, PlatformState* state, uint8_t* buf)
 {
     fd_set fdSet;
@@ -173,8 +211,7 @@ static int readFrame(ConnStatus* connStatus, PlatformState* state, uint8_t* buf)
     {
         std::cout << "EOF\n";
         *connStatus = ConnStatus::Eof;
-        tcsetattr(state->port, TCSANOW, &state->oldTio);
-        close(state->port);
+        closePort(state);
         return 1;
     }
     return 0;
@@ -189,6 +226,7 @@ static int readFrame(ConnStatus* connStatus, PlatformState* state, uint8_t* buf)
 	if (status == FALSE)
     {
         std::cout << "WaitCommEvent failed\n";
+        closePort(state);
         *connStatus = ConnStatus::IOError;
 		return 1;
 	}
@@ -198,12 +236,14 @@ static int readFrame(ConnStatus* connStatus, PlatformState* state, uint8_t* buf)
 	if (status == FALSE)
     {
         std::cout << "ReadFile failed\n";
+        closePort(state);
         *connStatus = ConnStatus::IOError;
 		return 1;
 	}
     if (bytesRead == 0)
     {
         std::cout << "EOF\n";
+        closePort(state);
         *connStatus = ConnStatus::Eof;
 		return 1;
     }
@@ -255,6 +295,7 @@ void startReadingData(
             if (!stayConnected || !keepThreadAlive)
             {
                 std::cout << "Connection closed by user\n";
+                closePort(&state);
                 connStatus = ConnStatus::Closed;
                 dispatcher.emit();
                 break;
