@@ -1,15 +1,16 @@
 #include <cassert>
-#ifdef __linux__
-#include <unistd.h>
-#include <fcntl.h>
-#include <termios.h>
-#else
-#endif
 #include <iostream>
 #include <stdint.h>
 #include <chrono>
 #include <thread>
 #include "protocol.h"
+#ifdef __linux__
+#   include <unistd.h>
+#   include <fcntl.h>
+#   include <termios.h>
+#else
+#   include <Windows.h>
+#endif
 
 #define BAUDRATE 2400
 #define READ_MIN 14
@@ -52,7 +53,7 @@ struct PlatformState
     int port{};
     termios oldTio{};
 #else
-
+    HANDLE port{};
 #endif
 };
 
@@ -92,9 +93,45 @@ static int configurePort(PlatformState* state)
 
 static int configurePort(PlatformState* state)
 {
-    std::cout << "TODO\n";
-    (void)state;
-    return 1;
+    state->port = CreateFile("\\\\.\\COM3", GENERIC_READ, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+    if (state->port == INVALID_HANDLE_VALUE)
+    {
+        std::cerr << "Failed to open port (code " << GetLastError() << ")\n";
+        return 1;
+    }
+    std::cout << "Opened port, handle: " << state->port << '\n';
+
+    COMMTIMEOUTS timeouts{};
+    timeouts.ReadIntervalTimeout = READ_TIMEOUT_USEC/1000;
+    if (SetCommTimeouts(state->port, &timeouts))
+    {
+        std::cerr << "Failed to set port timeout (code " << GetLastError() << ")\n";
+        //return 1;
+    }
+
+    if (SetCommMask(state->port, EV_RXCHAR))
+    {
+        std::cerr << "Failed to set communications mask (code " << GetLastError() << ")\n";
+        //return 1;
+    }
+
+    DCB dcbSerialParams{};
+    dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+    BOOL status = GetCommState(state->port, &dcbSerialParams);
+    if (status == FALSE)
+    {
+        std::cout << "Failed to get comm state (code " << GetLastError() << ")\n";
+        //return 1;
+    }
+    dcbSerialParams.BaudRate = BAUDRATE;
+    status = SetCommState(state->port, &dcbSerialParams);
+    if (status == FALSE)
+    {
+        std::cout << "Failed to set comm state (code " << GetLastError() << ")\n";
+        //return 1;
+    }
+
+    return 0;
 }
 
 #endif
@@ -143,11 +180,31 @@ static int readFrame(ConnStatus* connStatus, PlatformState* state, uint8_t* buf)
 
 static int readFrame(ConnStatus* connStatus, PlatformState* state, uint8_t* buf)
 {
-    std::cout << "TODO\n";
     *connStatus = ConnStatus::Closed;
-    (void)state;
-    (void)buf;
-    return 1;
+    DWORD dwEventMask;
+	BOOL status = WaitCommEvent(state->port, &dwEventMask, nullptr);
+	if (status == FALSE)
+    {
+        std::cout << "WaitCommEvent failed\n";
+        *connStatus = ConnStatus::IOError;
+		return 1;
+	}
+
+    DWORD bytesRead;
+	status = ReadFile(state->port, buf, READ_MIN, &bytesRead, nullptr);
+	if (status == FALSE)
+    {
+        std::cout << "ReadFile failed\n";
+        *connStatus = ConnStatus::IOError;
+		return 1;
+	}
+    if (bytesRead == 0)
+    {
+        std::cout << "EOF\n";
+        *connStatus = ConnStatus::Eof;
+		return 1;
+    }
+    return 0;
 }
 
 #endif
