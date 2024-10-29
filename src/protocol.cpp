@@ -86,6 +86,8 @@ static int configurePort(PlatformState* state)
     cfsetispeed(&newTio, B2400);
     tcsetattr(state->port, TCSANOW, &newTio);
 
+    std::cout << "Configured port\n";
+
     return 0;
 }
 
@@ -130,6 +132,8 @@ static int configurePort(PlatformState* state)
         std::cout << "Failed to set comm state (code " << GetLastError() << ")\n";
         //return 1;
     }
+
+    std::cout << "Configured port\n";
 
     return 0;
 }
