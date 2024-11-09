@@ -31,6 +31,11 @@
                                     </object>
                                 </child>
                                 <child>
+                                    <object class="GtkDropDown" id="port-dropdown">
+                                        <property name="tooltip-text">Device</property>
+                                    </object>
+                                </child>
+                                <child>
                                     <object class="GtkLabel" id="status-display">
                                         <property name="label">Disconnected</property>
                                         <property name="tooltip-text">Status</property>

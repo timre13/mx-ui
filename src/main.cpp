@@ -46,9 +46,15 @@ int main(int argc, char** argv)
     std::atomic<bool> keepThreadAlive = true;
     std::atomic<bool> stayConnected = true;
 
-    std::thread connThread{&startReadingData,
-        std::ref(keepThreadAlive), std::ref(stayConnected), std::ref(connStatus),
-        std::ref(frames), std::ref(framesMutex), std::ref(dispatcher)};
+    std::thread connThread{[](){}};
+    static const auto startThread{[&](const SerialDevice& device){
+        connThread.join();
+        connThread = std::thread{&startReadingData,
+            std::ref(keepThreadAlive), std::ref(stayConnected), std::ref(connStatus),
+            std::ref(frames), std::ref(framesMutex), std::ref(dispatcher), device};
+        keepThreadAlive = true;
+        stayConnected = true;
+    }};
 
     auto app = Gtk::Application::create("xyz.timre13.mx-ui");
     app->signal_activate().connect([&](){
@@ -64,6 +70,44 @@ int main(int argc, char** argv)
             std::cout << "Clicked\n";
             stayConnected = !stayConnected;
         });
+
+        {
+            const auto devs = listSerialDevices();
+            if (devs.empty())
+            {
+                std::cout << "No serial devices found\n";
+            }
+            else
+            {
+                std::cout << "Enumerating serial devices:\n";
+                for (const auto& file : devs)
+                {
+                    std::cout << '\t' << file.manufacturer << ' ' << file.product << " = " << file.path << std::endl;
+                }
+
+                std::vector<Glib::ustring> devStrings;
+                std::transform(devs.begin(), devs.end(), std::back_inserter(devStrings), [](const SerialDevice& x){
+                        return std::format("{} {} ({})", x.manufacturer, x.product, x.path);
+                });
+                auto list = Gtk::StringList::create(devStrings);
+
+                auto dropdown = builder->get_widget<Gtk::DropDown>("port-dropdown");
+                dropdown->set_model(list);
+
+                dropdown->property_selected().signal_changed().connect([&keepThreadAlive, &stayConnected, &builder, devs](){
+                    keepThreadAlive = false;
+                    stayConnected = false;
+                    const auto selected = builder->get_widget<Gtk::DropDown>("port-dropdown")->get_selected();
+                    const auto device = devs[selected];
+                    std::cout << "Selected device: " << device.path << '\n';
+                    startThread(device);
+                });
+
+                // Connect to the first serial device that we could find
+                startThread(devs[0]);
+            }
+        }
+
 
         auto drawingArea = builder->get_widget<Gtk::DrawingArea>("plot-area");
         assert(drawingArea);

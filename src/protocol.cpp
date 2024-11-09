@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <chrono>
 #include <thread>
+#include <filesystem>
+#include <fstream>
 #include "protocol.h"
 #ifdef __linux__
 #   include <unistd.h>
@@ -59,9 +61,9 @@ struct PlatformState
 
 #ifdef __linux__
 
-static int configurePort(PlatformState* state)
+static int configurePort(PlatformState* state, const SerialDevice& dev)
 {
-    state->port = open("/dev/ttyUSB0", O_RDONLY | O_NOCTTY);
+    state->port = open(dev.path.c_str(), O_RDONLY | O_NOCTTY);
 
     if (state->port == -1)
     {
@@ -255,8 +257,11 @@ static int readFrame(ConnStatus* connStatus, PlatformState* state, uint8_t* buf)
 void startReadingData(
         const std::atomic<bool>& keepThreadAlive, std::atomic<bool>& stayConnected, ConnStatus& connStatus,
         std::vector<std::unique_ptr<Frame>>& frames, std::mutex& framesMutex,
-        Glib::Dispatcher& dispatcher)
+        Glib::Dispatcher& dispatcher, const SerialDevice& device)
 {
+    std::cout << "Thread 0x" << std::hex << std::this_thread::get_id() << std::dec << " started\n";
+    std::cout << "Active serial device: " << device.path << '\n';
+
     /*
      * while keepThreadAlive:
      *    while !stayConnected
@@ -276,7 +281,7 @@ void startReadingData(
         dispatcher.emit();
 
         PlatformState state;
-        if (configurePort(&state))
+        if (configurePort(&state, device))
         {
            connStatus = ConnStatus::FailedToOpen;
            dispatcher.emit();
@@ -316,4 +321,36 @@ void startReadingData(
             dispatcher.emit();
         }
     }
+    std::cout << "Thread 0x" << std::hex << std::this_thread::get_id() << std::dec << " exited\n";
+}
+
+static std::string readLine(const std::filesystem::path& path)
+{
+    std::ifstream file{path};
+    std::string output;
+    std::getline(file, output);
+    file.close();
+    return output;
+}
+
+std::vector<SerialDevice> listSerialDevices()
+{
+    std::vector<SerialDevice> output;
+    std::filesystem::directory_iterator dirIter{"/sys/class/tty"};
+    for (const auto& file : dirIter)
+    {
+        if (!file.path().filename().string().starts_with("ttyUSB"))
+            continue;
+
+        const auto sysDevPath = std::filesystem::canonical(std::filesystem::canonical(file)/"../../../..");
+
+        output.push_back({
+                .manufacturer=readLine(sysDevPath/"manufacturer"),
+                .product=readLine(sysDevPath/"product"),
+                .path="/dev"/file.path().filename()
+        });
+    }
+    std::sort(output.begin(), output.end(),
+            [](const auto& x, const auto& y){ return x.path.compare(y.path); });
+    return output;
 }
